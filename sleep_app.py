@@ -11,7 +11,7 @@ from dashscope import Generation
 
 # ===== 配置区域 =====
 # 请把下面的 'your-api-key-here' 替换成你自己的API Key
-API_KEY = 'sk-71d259628cb34d6684789e5e312c0460'
+API_KEY = 'your-api-key-here' 
 
 # 设置API Key
 dashscope.api_key = API_KEY
