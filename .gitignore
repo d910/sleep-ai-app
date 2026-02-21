@@ -1,0 +1,14 @@
+# API Key（不要上传）
+*.key
+config.py
+
+# Python临时文件
+__pycache__/
+*.pyc
+*.pyo
+
+# Streamlit缓存
+.streamlit/
+
+# 环境配置
+.env
