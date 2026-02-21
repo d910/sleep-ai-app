@@ -11,7 +11,11 @@ from dashscope import Generation
 
 # ===== 配置区域 =====
 # 请把下面的 'your-api-key-here' 替换成你自己的API Key
-API_KEY = 'your-api-key-here' 
+# 尝试从Streamlit Secrets读取API Key，如果没有就用默认值
+try:
+    API_KEY = st.secrets["API_KEY"]
+except:
+    API_KEY = 'your-api-key-here'
 
 # 设置API Key
 dashscope.api_key = API_KEY
