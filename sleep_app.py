@@ -2,16 +2,17 @@
 # -*- coding: utf-8 -*-
 """
 睡前内容生成器 - Streamlit Web应用
-功能：睡前故事生成 + 冥想引导脚本 + 睡眠日记模板
+功能：睡前故事生成 + 冥想引导脚本（带语音）+ 睡眠日记模板
 """
 
 import streamlit as st
 import dashscope
 from dashscope import Generation
+# ===== 新增导入：语音合成 =====
+from dashscope.audio.tts_v2 import SpeechSynthesizer
 
 # ===== 配置区域 =====
 # 请把下面的 'your-api-key-here' 替换成你自己的API Key
-# 尝试从Streamlit Secrets读取API Key，如果没有就用默认值
 try:
     API_KEY = st.secrets["API_KEY"]
 except:
@@ -60,16 +61,50 @@ def call_ai(prompt, temperature=0.8):
         return f"发生错误：{str(e)}"
 
 
+# ===== 新增函数：文字转语音 =====
+def text_to_speech(text):
+    """
+    调用阿里云TTS API将文字转成语音
+    
+    参数:
+        text: 要转换的文字
+    
+    返回:
+        成功: 音频文件的二进制数据
+        失败: None
+    """
+    try:
+        # 创建语音合成器
+        synthesizer = SpeechSynthesizer(
+            model='cosyvoice-v1',  # 使用CosyVoice模型（音质好）
+            voice='longxiaochun'   # 温柔女声，适合助眠场景
+            # 其他可选声音：
+            # 'longyaoyao' - 知性女声
+            # 'longxiaomo' - 温柔男声
+        )
+        
+        # 调用语音合成
+        audio_data = synthesizer.call(text)
+        
+        # 返回音频二进制数据
+        return audio_data
+        
+    except Exception as e:
+        # 如果出错，返回None，并打印错误信息
+        st.error(f"语音生成失败：{str(e)}")
+        return None
+
+
 # ===== 页面标题 =====
 st.title("🌙 睡前内容生成器")
 st.markdown("---")
 st.write("欢迎使用睡前内容生成器！选择下面的功能，帮你准备一个美好的睡眠夜晚 💤")
 
 # ===== 功能选择 =====
-tab1, tab2, tab3 = st.tabs(["📖 睡前故事生成", "🧘 冥想引导脚本", "📝 睡眠日记模板"])
+tab1, tab2, tab3 = st.tabs(["📖 睡前故事生成", "🧘 冥想引导脚本（带语音）", "📝 睡眠日记模板"])
 
 # ═════════════════════════════════════════════════════════════════
-# 功能1：睡前故事生成
+# 功能1：睡前故事生成（保持不变）
 # ═════════════════════════════════════════════════════════════════
 with tab1:
     st.header("📖 睡前故事生成")
@@ -138,11 +173,11 @@ with tab1:
             )
 
 # ═════════════════════════════════════════════════════════════════
-# 功能2：冥想引导脚本
+# 功能2：冥想引导脚本（新增语音功能）
 # ═════════════════════════════════════════════════════════════════
 with tab2:
-    st.header("🧘 冥想引导脚本")
-    st.write("生成适合你当前状态的冥想引导词")
+    st.header("🧘 冥想引导脚本（带语音）")
+    st.write("生成适合你当前状态的冥想引导词，并转成语音播放")
     
     col1, col2 = st.columns(2)
     
@@ -167,7 +202,8 @@ with tab2:
         )
     
     # 生成按钮
-    if st.button("🧘 生成冥想脚本", key="meditation_btn"):
+    if st.button("🧘 生成冥想引导（文字+语音）", key="meditation_btn"):
+        # ===== 步骤1：生成文字脚本 =====
         with st.spinner("正在生成冥想引导词..."):
             # 构建提示词
             prompt = f"""
@@ -186,27 +222,64 @@ with tab2:
 2. 主体引导（根据冥想类型设计具体步骤）
 3. 结束引导（慢慢回到当下）
 
-请直接输出引导脚本，不要前言和后语。
+请直接输出引导脚本，不要前言和后语，不要输出与内容无关的内容，比如“开场引导、主体引导、结束引导”，以及时间，只输出引导内容。
 """
-            # 调用AI生成
+            # 调用AI生成文字
             meditation_script = call_ai(prompt, temperature=0.6)
             
-            # 显示结果
+            # 显示文字结果
             st.success("✅ 冥想脚本生成完成！")
-            st.markdown("### 你的冥想引导")
+            st.markdown("### 📝 你的冥想引导文字")
             st.info("💡 建议：找一个安静的地方，跟随引导词慢慢练习")
             st.write(meditation_script)
             
-            # 下载按钮
+            # 下载文字按钮
             st.download_button(
-                label="💾 下载脚本",
+                label="💾 下载文字脚本",
                 data=meditation_script,
                 file_name="冥想引导脚本.txt",
-                mime="text/plain"
+                mime="text/plain",
+                key="download_text"
             )
+        
+        # ===== 步骤2：转成语音 =====
+        st.markdown("---")
+        with st.spinner("正在生成语音，请稍候..."):
+            # 调用TTS函数
+            audio_data = text_to_speech(meditation_script)
+            
+            # 检查是否成功生成语音
+            if audio_data:
+                st.success("✅ 语音生成完成！")
+                st.markdown("### 🎧 语音播放")
+                
+                # 播放音频
+                # st.audio()接受二进制数据，直接传入audio_data即可
+                st.audio(audio_data, format='audio/wav')
+                
+                # 下载语音按钮
+                st.download_button(
+                    label="💾 下载语音文件",
+                    data=audio_data,
+                    file_name="冥想引导.wav",
+                    mime="audio/wav",
+                    key="download_audio"
+                )
+                
+                # 使用提示
+                st.info("""
+                💡 **使用建议：**
+                - 戴上耳机，音量调到舒适的程度
+                - 找一个安静、舒适的地方
+                - 闭上眼睛，跟随引导语放松
+                - 如果中途走神，温柔地把注意力带回来
+                """)
+            else:
+                # 如果语音生成失败，显示提示
+                st.warning("⚠️ 语音生成失败，但你仍然可以阅读或下载文字脚本。")
 
 # ═════════════════════════════════════════════════════════════════
-# 功能3：睡眠日记模板
+# 功能3：睡眠日记模板（保持不变）
 # ═════════════════════════════════════════════════════════════════
 with tab3:
     st.header("📝 睡眠日记模板")
@@ -296,7 +369,7 @@ st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: gray; font-size: 12px;'>
-    💤 睡前内容生成器 | 基于通义千问API + Streamlit<br>
+    💤 睡前内容生成器 | 基于通义千问API + Streamlit + 语音合成<br>
     祝你今晚睡个好觉 🌙
     </div>
     """,
